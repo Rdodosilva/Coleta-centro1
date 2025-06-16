@@ -1,53 +1,57 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Dashboard Coleta Centro", layout="wide")
+st.set_page_config(page_title="Dashboard - Coleta Centro", layout="wide")
 
 st.markdown(
-    "<h1 style='text-align: center; color: white;'>Dashboard - Coleta Centro</h1>",
+    """
+    <style>
+        body {
+            background-color: #0e1117;
+            color: white;
+        }
+        .stApp {
+            background-color: #0e1117;
+            color: white;
+        }
+    </style>
+    """,
     unsafe_allow_html=True
 )
 
-# Ler os dados
-df = pd.read_excel("Coleta centro.xlsx")
+st.title("🚛 Dashboard - Coleta Centro")
 
-# Limpeza de dados
-df = df.fillna(0)
-df = df[df["Mês"].notna() & (df["Mês"] != "Total")]
+file = "Coleta centro2.xlsx"
+df = pd.read_excel(file)
 
-# Sidebar para seleção de mês
-meses = df["Mês"].tolist()
-mes = st.sidebar.selectbox("Selecione o mês", meses + ["Todos"])
+df.columns = df.columns.str.strip()
 
-if mes != "Todos":
-    dados = df[df["Mês"] == mes]
-else:
-    dados = df
+df = df[df["Mês"].notna()]
+df = df[df["Mês"] != "Total"]
 
-# KPIs
-coleta_am = dados["Coleta AM"].sum()
-coleta_pm = dados["Coleta PM"].sum()
-total = dados["Total"].sum()
+df["Coleta AM"] = pd.to_numeric(df["Coleta AM"], errors='coerce')
+df["Coleta PM"] = pd.to_numeric(df["Coleta PM"], errors='coerce')
+df["Total"] = pd.to_numeric(df["Total"], errors='coerce')
 
-st.markdown("##")
-kpi1, kpi2, kpi3 = st.columns(3)
+manha = df["Coleta AM"].sum()
+tarde = df["Coleta PM"].sum()
+total = df["Total"].sum()
 
-kpi1.metric(label="Manhã (kg)", value=f"{coleta_am:,.0f}")
-kpi2.metric(label="Tarde (kg)", value=f"{coleta_pm:,.0f}")
-kpi3.metric(label="Total (kg)", value=f"{total:,.0f}")
+col1, col2, col3 = st.columns(3)
+col1.metric("🌅 Manhã (kg)", f"{manha:,.0f}")
+col2.metric("🌇 Tarde (kg)", f"{tarde:,.0f}")
+col3.metric("📊 Total Mensal", f"{total:,.0f}")
 
-# Gráfico de barras
-st.markdown("### Distribuição por Período")
+st.subheader("📦 Distribuição Mensal por Período")
 fig_bar = px.bar(
-    dados,
-    x=["Coleta AM", "Coleta PM"],
+    df,
+    x="Total",
     y="Mês",
+    color_discrete_sequence=["#00ffff"],
     orientation="h",
-    title="Coleta por Período",
-    labels={"value": "Quantidade (kg)", "Mês": "Mês", "variable": "Período"},
-    color_discrete_sequence=["#00FFFF", "#FF6600"]
+    labels={"Mês": "Mês", "Total": "Total (kg)"},
+    title="Total Coletado por Mês"
 )
 fig_bar.update_layout(
     plot_bgcolor="#0e1117",
@@ -56,13 +60,17 @@ fig_bar.update_layout(
 )
 st.plotly_chart(fig_bar, use_container_width=True)
 
-# Gráfico de pizza
-st.markdown("### Proporção Manhã vs Tarde")
+st.subheader("🍕 Proporção Manhã vs Tarde")
+pizza_data = pd.DataFrame({
+    "Período": ["Manhã", "Tarde"],
+    "Quantidade": [manha, tarde]
+})
 fig_pie = px.pie(
-    names=["Manhã", "Tarde"],
-    values=[coleta_am, coleta_pm],
-    title="Distribuição Total",
-    color_discrete_sequence=["#00FFFF", "#FF6600"]
+    pizza_data,
+    values="Quantidade",
+    names="Período",
+    color_discrete_sequence=["#00ffff", "#FF6600"],
+    title="Proporção de Coleta Manhã vs Tarde"
 )
 fig_pie.update_layout(
     plot_bgcolor="#0e1117",
@@ -71,5 +79,5 @@ fig_pie.update_layout(
 )
 st.plotly_chart(fig_pie, use_container_width=True)
 
-st.markdown("---")
-st.caption("Projeto Zeladoria - Coleta Centro")
+st.subheader("📑 Dados de Coleta")
+st.dataframe(df)
